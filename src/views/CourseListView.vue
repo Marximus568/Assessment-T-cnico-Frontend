@@ -68,21 +68,11 @@
         </tbody>
       </table>
 
-      <div class="pagination-footer">
-        <p class="stats">Showing page {{ currentPage }} of {{ totalPages }}</p>
-        <div class="pagination-controls">
-          <button 
-            class="btn btn-secondary btn-sm"
-            :disabled="currentPage === 1" 
-            @click="fetchCourses(currentPage - 1)"
-          >Previous</button>
-          <button 
-            class="btn btn-secondary btn-sm"
-            :disabled="currentPage === totalPages" 
-            @click="fetchCourses(currentPage + 1)"
-          >Next</button>
-        </div>
-      </div>
+      <Pagination 
+        :current-page="currentPage" 
+        :total-pages="totalPages" 
+        @change="fetchCourses" 
+      />
     </div>
   </div>
 </template>
@@ -91,13 +81,14 @@
 import { ref, onMounted } from 'vue';
 import apiClient from '../api/client';
 import { useAuthStore } from '../stores/auth';
+import Pagination from '../components/Pagination.vue';
 
 const authStore = useAuthStore();
 const courses = ref([]);
 const loading = ref(true);
 const currentPage = ref(1);
 const totalPages = ref(1);
-const pageSize = ref(10);
+const pageSize = ref(5);
 const searchQuery = ref('');
 const statusFilter = ref('');
 
@@ -125,7 +116,8 @@ const fetchCourses = async (page = 1) => {
     }
     
     courses.value = response.data.items;
-    totalPages.value = Math.ceil(response.data.totalCount / pageSize.value);
+    const totalCount = response.data.totalCount ?? response.data.total ?? response.data.count ?? courses.value.length;
+    totalPages.value = Math.ceil(totalCount / pageSize.value);
   } catch (err) {
     console.error('Error fetching courses:', err);
   } finally {

@@ -5,9 +5,11 @@ import LoginView from '../views/LoginView.vue';
 import RegisterView from '../views/RegisterView.vue';
 import CourseListView from '../views/CourseListView.vue';
 import CourseEditView from '../views/CourseEditView.vue';
+import AvailableCoursesView from '../views/AvailableCoursesView.vue';
 
 const routes = [
     { path: '/', name: 'home', component: HomeView },
+    { path: '/available', name: 'available-courses', component: AvailableCoursesView },
     { path: '/login', name: 'login', component: LoginView },
     { path: '/register', name: 'register', component: RegisterView },
     {
@@ -35,7 +37,7 @@ const router = createRouter({
 
 router.beforeEach((to, from, next) => {
     const authStore = useAuthStore();
-    const publicPages = ['/login', '/register', '/'];
+    const publicPages = ['/login', '/register', '/', '/available'];
     const authRequired = !publicPages.includes(to.path);
 
     if (authRequired && !authStore.isAuthenticated) {

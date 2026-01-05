@@ -266,13 +266,12 @@ const saveLesson = async () => {
     fetchLessons();
     fetchSummary();
   } catch (err) {
-    console.error('Save lesson error:', err);
-    if (err.response?.data?.errors) {
-      const errorObj = err.response.data.errors;
-      const errorMessages = Object.values(errorObj).flat();
-      alert('Validation Error: ' + errorMessages.join(' | '));
+    console.error('Save lesson error full response:', err.response?.data);
+    if (err.response?.data) {
+      const serverError = JSON.stringify(err.response.data, null, 2);
+      alert('Server Error Details:\n' + serverError);
     } else {
-      alert('Error saving lesson: ' + (err.response?.data?.message || err.message || 'Internal Server Error'));
+      alert('Error saving lesson: ' + err.message);
     }
   } finally {
     savingLesson.value = false;

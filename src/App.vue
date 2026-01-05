@@ -18,7 +18,8 @@ const logout = () => {
     </div>
     <nav class="nav-links">
       <router-link to="/">Home</router-link>
-      <router-link to="/courses">Courses</router-link>
+      <router-link to="/available">Available Courses</router-link>
+      <router-link to="/courses">Courses CRM</router-link>
     </nav>
     <div class="user-badge">
       <span>{{ authStore.user?.userName }}</span>
