@@ -20,7 +20,9 @@
 
     <div v-else class="courses-grid">
       <div v-for="course in courses" :key="course.id" class="course-card card">
-        <div class="course-badge">Published</div>
+        <div :class="['course-badge', (course.status === 1 || course.status === 'Published') ? 'badge-success' : 'badge-warning']">
+          {{ getStatusLabel(course.status) }}
+        </div>
         <h3 class="course-title">{{ course.title }}</h3>
         <p class="course-meta">Added on {{ formatDate(course.createdAt) }}</p>
         <div class="card-footer">
@@ -47,21 +49,30 @@ const loading = ref(true);
 const currentPage = ref(1);
 const totalPages = ref(1);
 const pageSize = ref(5);
+const statusFilter = ref('');
+
+const getStatusLabel = (status) => {
+  if (status === 0 || status === 'Draft') return 'Draft';
+  if (status === 1 || status === 'Published') return 'Published';
+  return status;
+};
 
 const fetchCourses = async (page = 1) => {
   loading.value = true;
   currentPage.value = page;
   try {
-    // Use the search endpoint to filter for Published courses on the backend
-    const response = await apiClient.get('/courses/search', {
+    // Use the public endpoint but ensure it respects pagination parameters
+    const response = await apiClient.get('/courses', {
       params: {
-        status: 'Published',
         page: currentPage.value,
         pageSize: pageSize.value
       }
     });
     
-    courses.value = response.data.items;
+    // Filter for Published courses on the frontend as a safety measure
+    // Assuming 1 or 'Published' represents a published course
+    courses.value = response.data.items.filter(c => c.status === 1 || c.status === 'Published');
+    
     const totalCount = response.data.totalCount ?? response.data.total ?? response.data.count ?? courses.value.length;
     totalPages.value = Math.ceil(totalCount / pageSize.value);
   } catch (err) {
@@ -112,8 +123,6 @@ onMounted(() => {
 
 .course-badge {
   display: inline-block;
-  background: rgba(39, 174, 96, 0.1);
-  color: var(--success);
   padding: 4px 10px;
   border-radius: 6px;
   font-size: 0.7rem;

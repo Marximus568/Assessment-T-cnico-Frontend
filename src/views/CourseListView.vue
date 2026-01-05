@@ -55,8 +55,8 @@
           <tr v-for="course in courses" :key="course.id">
             <td class="course-title">{{ course.title }}</td>
             <td>
-              <span :class="['badge', course.status === 'Published' ? 'badge-success' : 'badge-warning']">
-                {{ course.status }}
+              <span :class="['badge', (course.status === 1 || course.status === 'Published') ? 'badge-success' : 'badge-warning']">
+                {{ getStatusLabel(course.status) }}
               </span>
             </td>
             <td class="date-cell">{{ formatDate(course.createdAt) }}</td>
@@ -91,6 +91,12 @@ const totalPages = ref(1);
 const pageSize = ref(5);
 const searchQuery = ref('');
 const statusFilter = ref('');
+
+const getStatusLabel = (status) => {
+  if (status === 0 || status === 'Draft') return 'Draft';
+  if (status === 1 || status === 'Published') return 'Published';
+  return status;
+};
 
 const fetchCourses = async (page = 1) => {
   loading.value = true;
@@ -133,10 +139,18 @@ const handleSearch = () => {
   }, 500);
 };
 
-const deleteCourse = async (id) => {
-  if (!confirm('Are you sure you want to delete this course? This action cannot be undone.')) return;
+const deleteCourse = async (courseId) => {
   try {
-    await apiClient.delete(`/courses/${id}`);
+    // We need to check if the course has lessons.
+    // In the list view we don't have courseSummary for each row, 
+    // so we'll do a quick check to the summary API before deleting.
+    const summaryResp = await apiClient.get(`/courses/${courseId}/summary`);
+    if (summaryResp.data && summaryResp.data.totalLessons > 0) {
+      return alert(`Cannot delete course: This course has ${summaryResp.data.totalLessons} lessons. Please remove all lessons first.`);
+    }
+
+    if (!confirm('Are you sure you want to delete this course? This action cannot be undone.')) return;
+    await apiClient.delete(`/courses/${courseId}`);
     fetchCourses(currentPage.value);
   } catch (err) {
     alert('Error deleting course');

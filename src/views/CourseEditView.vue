@@ -5,11 +5,11 @@
       <div class="header-main">
         <h1>{{ isNew ? 'Create New Course' : 'Course Workshop' }}</h1>
         <div v-if="!isNew" class="status-controls">
-          <span :class="['badge', course.status === 'Published' ? 'badge-success' : 'badge-warning']">
-            {{ course.status }}
+          <span :class="['badge', isPublished ? 'badge-success' : 'badge-warning']">
+            {{ getStatusLabel(course.status) }}
           </span>
-          <button v-if="course.status === 'Draft'" @click="publishCourse" class="btn btn-primary btn-sm">Publish</button>
-          <button v-if="course.status === 'Published'" @click="unpublishCourse" class="btn btn-secondary btn-sm">Unpublish</button>
+          <button v-if="!isPublished" @click="publishCourse" class="btn btn-primary btn-sm">Publish</button>
+          <button v-if="isPublished" @click="unpublishCourse" class="btn btn-secondary btn-sm">Unpublish</button>
         </div>
       </div>
     </div>
@@ -145,6 +145,16 @@ const editingLessonId = ref(null);
 const savingLesson = ref(false);
 const lessonForm = ref({ title: '', order: 1 });
 
+const isPublished = computed(() => {
+  return course.value.status === 1 || course.value.status === 'Published';
+});
+
+const getStatusLabel = (status) => {
+  if (status === 0 || status === 'Draft') return 'Draft';
+  if (status === 1 || status === 'Published') return 'Published';
+  return status;
+};
+
 const fetchCourse = async () => {
   if (isNew.value) return;
   try {
@@ -188,7 +198,8 @@ const createCourse = async () => {
   try {
     // Sending raw string as requested by the 400 fix
     const response = await apiClient.post('/courses', course.value.title);
-    router.push(`/courses/${response.data.id}`);
+    // Redirect to Dashboard instead of Workshop
+    router.push('/courses');
   } catch (err) {
     console.error('Create error:', err);
     alert('Failed to initialize course. Please check if the title is unique or the server is responding.');
@@ -211,7 +222,7 @@ const saveCourseMeta = async () => {
 
 const publishCourse = async () => {
   try {
-    await apiClient.post(`/courses/${id}/publish`);
+    await apiClient.patch(`/courses/${id}/publish`);
     fetchCourse();
   } catch (err) {
     alert(err.response?.data?.message || 'Cannot publish empty curriculum.');
@@ -220,7 +231,7 @@ const publishCourse = async () => {
 
 const unpublishCourse = async () => {
   try {
-    await apiClient.post(`/courses/${id}/unpublish`);
+    await apiClient.patch(`/courses/${id}/unpublish`);
     fetchCourse();
   } catch (err) {
     alert('Failed to revert status.');
@@ -228,6 +239,10 @@ const unpublishCourse = async () => {
 };
 
 const deleteCourse = async () => {
+  if (courseSummary.value && courseSummary.value.totalLessons > 0) {
+    return alert(`Cannot delete course: This course has ${courseSummary.value.totalLessons} lessons. Please remove all lessons before deleting the course.`);
+  }
+  
   if (!confirm('EXTREME CAUTION: This will delete everything. Proceed?')) return;
   try {
     await apiClient.delete(`/courses/${id}`);

@@ -4,7 +4,8 @@ WORKDIR /app
 COPY package*.json ./
 RUN npm install
 COPY . .
-RUN npm run build
+# Clean previous builds to avoid asset mismatches in cache
+RUN rm -rf dist && npm run build
 
 # Production Stage
 FROM nginx:stable-alpine AS production-stage
