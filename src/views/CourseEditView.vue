@@ -1,87 +1,122 @@
 <template>
-  <div class="course-edit">
-    <div class="header">
-      <router-link to="/courses" class="btn-back">← Back to Courses</router-link>
-      <h1>{{ isNew ? 'Create Course' : 'Edit Course' }}</h1>
+  <div class="course-edit-page">
+    <div class="page-header">
+      <router-link to="/courses" class="btn-back">← Back to Dashboard</router-link>
+      <div class="header-main">
+        <h1>{{ isNew ? 'Create New Course' : 'Course Workshop' }}</h1>
+        <div v-if="!isNew" class="status-controls">
+          <span :class="['badge', course.status === 'Published' ? 'badge-success' : 'badge-warning']">
+            {{ course.status }}
+          </span>
+          <button v-if="course.status === 'Draft'" @click="publishCourse" class="btn btn-primary btn-sm">Publish</button>
+          <button v-if="course.status === 'Published'" @click="unpublishCourse" class="btn btn-secondary btn-sm">Unpublish</button>
+        </div>
+      </div>
     </div>
 
-    <section class="course-info card">
-      <div class="form-group">
-        <label>Course Title</label>
-        <div class="input-with-action">
-          <input v-model="course.title" placeholder="Enter course title" />
-          <button v-if="!isNew" @click="saveCourseMeta" :disabled="saving" class="btn">
-            {{ saving ? 'Saving...' : 'Save Title' }}
+    <div class="editor-grid">
+      <!-- Left Column: Settings & Metrics -->
+      <div class="settings-column">
+        <section class="card">
+          <h3>Course Settings</h3>
+          <p class="section-desc">Manage your course identity and visibility</p>
+          
+          <div class="form-group mt-20">
+            <label>Title</label>
+            <div class="input-action-group">
+              <input v-model="course.title" placeholder="e.g., Advanced Architecture Patterns" />
+              <button v-if="!isNew" @click="saveCourseMeta" :disabled="saving" class="btn btn-primary">
+                {{ saving ? '...' : 'Save' }}
+              </button>
+            </div>
+          </div>
+
+          <button v-if="isNew" @click="createCourse" :disabled="saving" class="btn btn-primary btn-block">
+            {{ saving ? 'Creating...' : 'Initialize Course' }}
           </button>
-        </div>
-      </div>
-      
-      <div v-if="!isNew" class="course-meta">
-        <p>Status: <span :class="['status-badge', course.status?.toLowerCase()]">{{ course.status }}</span></p>
-        <div class="meta-actions">
-          <button v-if="course.status === 'Draft'" @click="publishCourse" class="btn btn-success">Publish</button>
-          <button v-if="course.status === 'Published'" @click="unpublishCourse" class="btn btn-warning">Unpublish</button>
-          <button @click="deleteCourse" class="btn btn-danger">Delete Course</button>
-        </div>
-      </div>
 
-      <button v-if="isNew" @click="createCourse" :disabled="saving" class="btn btn-block">
-        {{ saving ? 'Creating...' : 'Create Course & Add Lessons' }}
-      </button>
-
-      <div v-if="!isNew && courseSummary" class="metrics-grid">
-        <div class="metric-card">
-          <span class="metric-label">Total Lessons</span>
-          <span class="metric-value">{{ courseSummary.totalLessons }}</span>
-        </div>
-        <div class="metric-card">
-          <span class="metric-label">Last Modified</span>
-          <span class="metric-value">{{ formatDate(courseSummary.lastModified) }}</span>
-        </div>
-      </div>
-    </section>
-
-    <section v-if="!isNew" class="lessons-section">
-      <div class="lessons-header">
-        <h2>Lessons</h2>
-        <button @click="showLessonModal = true" class="btn">Add Lesson</button>
-      </div>
-
-      <div v-if="lessonsLoading" class="loading">Loading lessons...</div>
-      <div v-else-if="lessons.length === 0" class="no-data">No lessons found. Add your first lesson!</div>
-      
-      <div v-else class="lesson-list">
-        <div v-for="lesson in lessons" :key="lesson.id" class="lesson-item card">
-          <div class="lesson-order">{{ lesson.order }}</div>
-          <div class="lesson-content">
-            <h3>{{ lesson.title }}</h3>
+          <div v-if="!isNew && courseSummary" class="metrics-dashboard">
+            <h4>Performance Overview</h4>
+            <div class="metrics-grid">
+              <div class="metric-item">
+                <span class="label">Total Lessons</span>
+                <span class="value">{{ courseSummary.totalLessons }}</span>
+              </div>
+              <div class="metric-item">
+                <span class="label">Last Activity</span>
+                <span class="value">{{ formatDate(courseSummary.lastModified) }}</span>
+              </div>
+            </div>
           </div>
-          <div class="lesson-actions">
-            <button @click="moveLesson(lesson, 'up')" :disabled="lesson.order === 1" class="btn-sm">↑</button>
-            <button @click="moveLesson(lesson, 'down')" :disabled="lesson.order === lessons.length" class="btn-sm">↓</button>
-            <button @click="editLesson(lesson)" class="btn-sm btn-info">Edit</button>
-            <button @click="deleteLesson(lesson.id)" class="btn-sm btn-danger">Delete</button>
+          
+          <div v-if="!isNew" class="danger-zone">
+            <h4>Danger Zone</h4>
+            <button @click="deleteCourse" class="btn btn-logout-outline btn-block">Delete Course Permanently</button>
           </div>
-        </div>
+        </section>
       </div>
-    </section>
 
-    <!-- Lesson Modal -->
-    <div v-if="showLessonModal" class="modal-overlay">
+      <!-- Right Column: Content/Lessons -->
+      <div v-if="!isNew" class="content-column">
+        <section class="card lessons-card">
+          <div class="lessons-header">
+            <div>
+              <h3>Course Curriculum</h3>
+              <p class="section-desc">Organize and structure your lessons</p>
+            </div>
+            <button @click="openNewLessonModal" class="btn btn-primary">+ Add Lesson</button>
+          </div>
+
+          <div v-if="lessonsLoading" class="loading-content">
+            <div class="spinner-sm"></div>
+            <span>Loading curriculum...</span>
+          </div>
+          
+          <div v-else-if="lessons.length === 0" class="empty-lessons">
+            <div class="empty-art">📚</div>
+            <h4>Your curriculum is empty</h4>
+            <p>Start adding lessons to build your course value.</p>
+          </div>
+          
+          <div v-else class="lesson-stack">
+            <div v-for="lesson in lessons" :key="lesson.id" class="lesson-card">
+              <div class="lesson-index">{{ lesson.order }}</div>
+              <div class="lesson-info">
+                <h4>{{ lesson.title }}</h4>
+              </div>
+              <div class="lesson-actions">
+                <div class="reorder-group">
+                  <button @click="moveLesson(lesson, 'up')" :disabled="lesson.order === 1" class="btn-icon">↑</button>
+                  <button @click="moveLesson(lesson, 'down')" :disabled="lesson.order === lessons.length" class="btn-icon">↓</button>
+                </div>
+                <button @click="editLesson(lesson)" class="btn btn-secondary btn-sm">Edit</button>
+                <button @click="deleteLesson(lesson.id)" class="btn-icon btn-danger-icon">×</button>
+              </div>
+            </div>
+          </div>
+        </section>
+      </div>
+    </div>
+
+    <!-- Lesson Modal Overlay -->
+    <div v-if="showLessonModal" class="modal-overlay" @click.self="closeLessonModal">
       <div class="modal card">
-        <h3>{{ editingLessonId ? 'Edit Lesson' : 'Add New Lesson' }}</h3>
+        <div class="modal-header">
+          <h3>{{ editingLessonId ? 'Modify Lesson' : 'Add New Content' }}</h3>
+          <button @click="closeLessonModal" class="close-btn">×</button>
+        </div>
         <div class="form-group">
           <label>Lesson Title</label>
-          <input v-model="lessonForm.title" placeholder="Lesson title" />
+          <input v-model="lessonForm.title" placeholder="e.g., Introduction to the framework" autofocus />
         </div>
         <div class="form-group">
-          <label>Order</label>
+          <label>Sequential Order</label>
           <input type="number" v-model.number="lessonForm.order" :disabled="editingLessonId" />
         </div>
-        <div class="modal-actions">
+        <div class="modal-footer">
           <button @click="closeLessonModal" class="btn btn-secondary">Cancel</button>
-          <button @click="saveLesson" :disabled="savingLesson" class="btn">
-            {{ savingLesson ? 'Saving...' : 'Save' }}
+          <button @click="saveLesson" :disabled="savingLesson" class="btn btn-primary">
+            {{ savingLesson ? 'Saving...' : 'Confirm' }}
           </button>
         </div>
       </div>
@@ -104,9 +139,7 @@ const courseSummary = ref(null);
 const lessons = ref([]);
 const saving = ref(false);
 const lessonsLoading = ref(false);
-const summaryLoading = ref(false);
 
-// Lesson Form
 const showLessonModal = ref(false);
 const editingLessonId = ref(null);
 const savingLesson = ref(false);
@@ -115,7 +148,7 @@ const lessonForm = ref({ title: '', order: 1 });
 const fetchCourse = async () => {
   if (isNew.value) return;
   try {
-    const response = await apiClient.get(`/course/${id}`);
+    const response = await apiClient.get(`/courses/${id}`);
     course.value = response.data;
     fetchLessons();
     fetchSummary();
@@ -126,25 +159,21 @@ const fetchCourse = async () => {
 };
 
 const fetchSummary = async () => {
-  summaryLoading.value = true;
   try {
-    const response = await apiClient.get(`/course/${id}/summary`);
+    const response = await apiClient.get(`/courses/${id}/summary`);
     courseSummary.value = response.data;
   } catch (err) {
     console.error('Error fetching summary:', err);
-  } finally {
-    summaryLoading.value = false;
   }
 };
 
 const fetchLessons = async () => {
   lessonsLoading.value = true;
   try {
-    const response = await apiClient.get(`/course/${id}/lesson`, {
-        params: { pageSize: 100 } // Get all for reordering
+    const response = await apiClient.get(`/courses/${id}/lessons`, {
+        params: { pageSize: 100 }
     });
     lessons.value = response.data.items.sort((a, b) => a.order - b.order);
-    // Set next order for new lesson
     lessonForm.value.order = lessons.value.length + 1;
   } catch (err) {
     console.error('Error fetching lessons:', err);
@@ -157,31 +186,24 @@ const createCourse = async () => {
   if (!course.value.title) return alert('Title is required');
   saving.value = true;
   try {
-    // API supports either string or object
-    const response = await apiClient.post('/course', { title: course.value.title });
+    // Sending raw string as requested by the 400 fix
+    const response = await apiClient.post('/courses', course.value.title);
     router.push(`/courses/${response.data.id}`);
-    // Refreshing state after redirect happens automatically on remount
   } catch (err) {
-    alert('Error creating course');
+    console.error('Create error:', err);
+    alert('Failed to initialize course. Please check if the title is unique or the server is responding.');
   } finally {
     saving.value = false;
   }
 };
 
 const saveCourseMeta = async () => {
-  // Note: The API doesn't seem to have a PATCH /course/{id} for title only?
-  // Let me double check the routes. 
-  // It has GET, DELETE, and Create. 
-  // If there's no update endpoint, I might have to skip specific title editing 
-  // or assume the API might support PUT/PATCH even if not explicitly in the "routes" list provided.
-  // Given the instructions say "Editar curso", I'll assume there's a PUT or PATCH.
-  // I'll try PUT /course/{id} with the title.
   saving.value = true;
   try {
-    await apiClient.put(`/course/${id}`, { title: course.value.title });
-    alert('Course updated');
+    await apiClient.put(`/courses/${id}`, { title: course.value.title });
+    alert('Course core settings updated');
   } catch (err) {
-    alert('Error updating course. (API might not support direct title updates yet)');
+    alert('Cloud sync failed for course settings.');
   } finally {
     saving.value = false;
   }
@@ -189,33 +211,38 @@ const saveCourseMeta = async () => {
 
 const publishCourse = async () => {
   try {
-    await apiClient.post(`/course/${id}/publish`);
+    await apiClient.post(`/courses/${id}/publish`);
     fetchCourse();
   } catch (err) {
-    alert(err.response?.data?.message || 'Error publishing course');
+    alert(err.response?.data?.message || 'Cannot publish empty curriculum.');
   }
 };
 
 const unpublishCourse = async () => {
   try {
-    await apiClient.post(`/course/${id}/unpublish`);
+    await apiClient.post(`/courses/${id}/unpublish`);
     fetchCourse();
   } catch (err) {
-    alert('Error unpublishing course');
+    alert('Failed to revert status.');
   }
 };
 
 const deleteCourse = async () => {
-  if (!confirm('Are you sure you want to delete this course?')) return;
+  if (!confirm('EXTREME CAUTION: This will delete everything. Proceed?')) return;
   try {
-    await apiClient.delete(`/course/${id}`);
+    await apiClient.delete(`/courses/${id}`);
     router.push('/courses');
   } catch (err) {
-    alert('Error deleting course');
+    alert('Destruction failed.');
   }
 };
 
-// Lesson Actions
+const openNewLessonModal = () => {
+  editingLessonId.value = null;
+  lessonForm.value = { title: '', order: lessons.value.length + 1 };
+  showLessonModal.value = true;
+};
+
 const editLesson = (lesson) => {
   editingLessonId.value = lesson.id;
   lessonForm.value = { title: lesson.title, order: lesson.order };
@@ -224,34 +251,42 @@ const editLesson = (lesson) => {
 
 const closeLessonModal = () => {
   showLessonModal.value = false;
-  editingLessonId.value = null;
-  lessonForm.value = { title: '', order: lessons.value.length + 1 };
 };
 
 const saveLesson = async () => {
+  if (!lessonForm.value.title) return alert('Title required');
   savingLesson.value = true;
   try {
     if (editingLessonId.value) {
-      await apiClient.put(`/course/${id}/lesson/${editingLessonId.value}`, lessonForm.value);
+      await apiClient.put(`/courses/${id}/lessons/${editingLessonId.value}`, lessonForm.value);
     } else {
-      await apiClient.post(`/course/${id}/lesson`, lessonForm.value);
+      await apiClient.post(`/courses/${id}/lessons`, lessonForm.value);
     }
     closeLessonModal();
     fetchLessons();
+    fetchSummary();
   } catch (err) {
-    alert('Error saving lesson');
+    console.error('Save lesson error:', err);
+    if (err.response?.data?.errors) {
+      const errorObj = err.response.data.errors;
+      const errorMessages = Object.values(errorObj).flat();
+      alert('Validation Error: ' + errorMessages.join(' | '));
+    } else {
+      alert('Error saving lesson: ' + (err.response?.data?.message || err.message || 'Internal Server Error'));
+    }
   } finally {
     savingLesson.value = false;
   }
 };
 
 const deleteLesson = async (lessonId) => {
-  if (!confirm('Are you sure?')) return;
+  if (!confirm('Remove this unit?')) return;
   try {
-    await apiClient.delete(`/course/${id}/lesson/${lessonId}`);
+    await apiClient.delete(`/courses/${id}/lessons/${lessonId}`);
     fetchLessons();
+    fetchSummary();
   } catch (err) {
-    alert('Error deleting lesson');
+    alert('Action blocked.');
   }
 };
 
@@ -260,11 +295,21 @@ const moveLesson = async (lesson, direction) => {
   if (newOrder < 1 || newOrder > lessons.value.length) return;
   
   try {
-    await apiClient.put(`/course/${id}/lesson/${lesson.id}/reorder`, newOrder);
+    await apiClient.put(`/courses/${id}/lessons/${lesson.id}/reorder`, newOrder);
     fetchLessons();
   } catch (err) {
-    alert('Error reordering lesson');
+    alert('Order update failed.');
   }
+};
+
+const formatDate = (dateString) => {
+  if (!dateString) return '---';
+  return new Intl.DateTimeFormat('en-US', {
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
+  }).format(new Date(dateString));
 };
 
 onMounted(() => {
@@ -273,193 +318,217 @@ onMounted(() => {
 </script>
 
 <style scoped>
-.header {
-  margin-bottom: 2rem;
+.course-edit-page {
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+.page-header {
+  margin-bottom: 40px;
 }
 
 .btn-back {
-  display: inline-block;
-  margin-bottom: 1rem;
-  color: #3498db;
+  color: var(--text-light);
   text-decoration: none;
-}
-
-.card {
-  background: white;
-  padding: 1.5rem;
-  border-radius: 8px;
-  border: 1px solid #ddd;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-  margin-bottom: 1.5rem;
-}
-
-.form-group {
-  margin-bottom: 1rem;
-}
-
-label {
+  font-size: 0.9rem;
+  margin-bottom: 15px;
   display: block;
-  font-weight: bold;
-  margin-bottom: 0.5rem;
 }
 
-input {
-  width: 100%;
-  padding: 0.8rem;
-  border: 1px solid #ccc;
-  border-radius: 4px;
-  box-sizing: border-box;
-}
-
-.input-with-action {
-  display: flex;
-  gap: 1rem;
-}
-
-.input-with-action input {
-  flex: 1;
-}
-
-.course-meta {
-  margin-top: 1.5rem;
-  padding-top: 1.5rem;
-  border-top: 1px solid #eee;
+.header-main {
   display: flex;
   justify-content: space-between;
   align-items: center;
 }
 
+.status-controls {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+}
+
+.editor-grid {
+  display: grid;
+  grid-template-columns: 400px 1fr;
+  gap: 30px;
+  align-items: start;
+}
+
+.section-desc {
+  color: var(--text-light);
+  font-size: 0.9rem;
+  margin-bottom: 10px;
+}
+
+.input-action-group {
+  display: flex;
+  gap: 10px;
+}
+
+.input-action-group input {
+  flex: 1;
+}
+
+.metrics-dashboard {
+  margin-top: 30px;
+  padding-top: 25px;
+  border-top: 1px solid var(--border);
+}
+
+.metrics-dashboard h4 {
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  color: var(--text-light);
+  margin-bottom: 15px;
+  letter-spacing: 1px;
+}
+
 .metrics-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-  gap: 1rem;
-  margin-top: 1.5rem;
-  padding-top: 1.5rem;
-  border-top: 1px solid #eee;
+  grid-template-columns: 1fr 1fr;
+  gap: 15px;
 }
 
-.metric-card {
+.metric-item {
   background: #f8f9fa;
-  padding: 1rem;
-  border-radius: 6px;
-  text-align: center;
-  border: 1px solid #e9ecef;
-}
-
-.metric-label {
-  display: block;
-  font-size: 0.8rem;
-  color: #6c757d;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  margin-bottom: 0.5rem;
-}
-
-.metric-value {
-  display: block;
-  font-size: 1.2rem;
-  font-weight: bold;
-  color: #2c3e50;
-}
-
-.status-badge {
-  padding: 0.2rem 0.6rem;
+  padding: 15px;
   border-radius: 12px;
+  border: 1px solid var(--border);
+}
+
+.metric-item .label {
+  display: block;
+  font-size: 0.75rem;
+  color: var(--text-light);
+  margin-bottom: 5px;
+}
+
+.metric-item .value {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--secondary);
+}
+
+.danger-zone {
+  margin-top: 40px;
+  padding-top: 25px;
+  border-top: 1px dashed var(--danger);
+}
+
+.danger-zone h4 {
+  color: var(--danger);
   font-size: 0.8rem;
-  font-weight: bold;
+  text-transform: uppercase;
+  margin-bottom: 15px;
+  letter-spacing: 1px;
 }
 
-.status-badge.published {
-  background-color: #e6f7ef;
-  color: #2ecc71;
+.btn-logout-outline {
+  background: transparent;
+  color: var(--danger);
+  border: 1px solid var(--danger);
 }
 
-.status-badge.draft {
-  background-color: #fef5e7;
-  color: #f39c12;
-}
-
-.meta-actions {
-  display: flex;
-  gap: 0.5rem;
+.btn-logout-outline:hover {
+  background: var(--danger);
+  color: white;
 }
 
 .lessons-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 1rem;
+  margin-bottom: 30px;
 }
 
-.lesson-item {
+.lesson-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.lesson-card {
   display: flex;
   align-items: center;
-  gap: 1rem;
-  padding: 1rem;
-  background: white;
+  gap: 20px;
+  padding: 15px 25px;
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  transition: all 0.2s ease;
 }
 
-.lesson-order {
-  width: 30px;
-  height: 30px;
-  background: #eee;
+.lesson-card:hover {
+  border-color: var(--primary);
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+}
+
+.lesson-index {
+  width: 32px;
+  height: 32px;
+  background: var(--secondary);
+  color: white;
   display: flex;
   justify-content: center;
   align-items: center;
-  border-radius: 50%;
-  font-weight: bold;
+  border-radius: 8px;
+  font-weight: 700;
+  font-size: 0.9rem;
 }
 
-.lesson-content {
+.lesson-info {
   flex: 1;
-}
-
-.lesson-content h3 {
-  margin: 0;
-  font-size: 1.1rem;
 }
 
 .lesson-actions {
   display: flex;
-  gap: 0.2rem;
+  align-items: center;
+  gap: 15px;
 }
 
-.btn {
-  padding: 0.6rem 1.2rem;
-  background-color: #42b983;
-  color: white;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-  font-weight: bold;
+.reorder-group {
+  display: flex;
+  gap: 5px;
 }
 
-.btn-block {
-  width: 100%;
-}
-
-.btn-sm {
-  padding: 0.3rem 0.6rem;
-  border: 1px solid #ccc;
+.btn-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
   background: white;
+  display: flex;
+  justify-content: center;
+  align-items: center;
   cursor: pointer;
-  border-radius: 4px;
+  font-weight: 600;
 }
 
-.btn-danger { background-color: #e74c3c; color: white; border: none; }
-.btn-warning { background-color: #f39c12; color: white; border: none; }
-.btn-success { background-color: #2ecc71; color: white; border: none; }
-.btn-info { background-color: #3498db; color: white; border: none; }
-.btn-secondary { background-color: #95a5a6; color: white; border: none; }
+.btn-icon:hover:not(:disabled) {
+  background: #f1f3f5;
+}
 
-/* Modal */
+.btn-icon:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.btn-danger-icon {
+  color: var(--danger);
+}
+
+.empty-lessons {
+  text-align: center;
+  padding: 60px 20px;
+}
+
+.empty-art { font-size: 3rem; margin-bottom: 20px; }
+
 .modal-overlay {
+  background: rgba(44, 62, 80, 0.7);
+  backdrop-filter: blur(4px);
   position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0,0,0,0.5);
+  top:0; left:0; right:0; bottom:0;
   display: flex;
   justify-content: center;
   align-items: center;
@@ -467,21 +536,52 @@ input {
 }
 
 .modal {
-  width: 400px;
-  background: white;
-  padding: 2rem;
+  width: 100%;
+  max-width: 450px;
+  padding: 30px;
+  position: relative;
 }
 
-.modal-actions {
+.modal-header {
   display: flex;
-  justify-content: flex-end;
-  gap: 1rem;
-  margin-top: 2rem;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 25px;
 }
 
-.no-data, .loading {
-  text-align: center;
-  padding: 2rem;
-  color: #777;
+.close-btn {
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  cursor: pointer;
+  color: var(--text-light);
+}
+
+.modal-footer {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+  margin-top: 30px;
+}
+
+.mt-20 { margin-top: 20px; }
+.btn-block { width: 100%; }
+
+.spinner-sm {
+  width: 20px;
+  height: 20px;
+  border: 2px solid rgba(66, 185, 131, 0.1);
+  border-left-color: var(--primary);
+  border-radius: 50%;
+  animation: rotate 1s linear infinite;
+}
+
+.loading-content {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--text-light);
+  justify-content: center;
+  padding: 40px;
 }
 </style>

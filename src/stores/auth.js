@@ -32,9 +32,9 @@ export const useAuthStore = defineStore('auth', {
                 throw error;
             }
         },
-        async register(email, password, userName) {
+        async register(email, password, userName, confirmPassword) {
             try {
-                const response = await apiClient.post('/auth/register', { email, password, userName });
+                const response = await apiClient.post('/auth/register', { email, password, userName, confirmPassword });
                 this.token = response.data.token;
                 this.user = response.data.user;
                 localStorage.setItem('token', this.token);

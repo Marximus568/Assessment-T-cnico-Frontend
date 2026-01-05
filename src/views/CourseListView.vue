@@ -1,35 +1,51 @@
 <template>
-  <div class="course-list">
-    <div class="header">
-      <h1>Courses</h1>
-      <router-link to="/courses/new" class="btn">Create New Course</router-link>
+  <div class="course-list-page">
+    <div class="page-header">
+      <div class="header-text">
+        <h1>Courses</h1>
+        <p class="subtitle">Quickly manage and monitor all your educational content</p>
+      </div>
+      <router-link to="/courses/new" class="btn btn-primary">
+        <span class="plus-icon">+</span> Create New Course
+      </router-link>
     </div>
 
-    <div class="filters">
-      <input 
-        v-model="searchQuery" 
-        @input="handleSearch" 
-        placeholder="Search courses..." 
-        class="search-input"
-      />
-      <select v-model="statusFilter" @change="fetchCourses(1)" class="status-select">
-        <option value="">All Statuses</option>
-        <option value="Draft">Draft</option>
-        <option value="Published">Published</option>
-      </select>
+    <div class="search-bar card">
+      <div class="search-input-wrapper">
+        <span class="search-icon">🔍</span>
+        <input 
+          v-model="searchQuery" 
+          @input="handleSearch" 
+          placeholder="Search by title..." 
+          class="inline-input"
+        />
+      </div>
+      <div class="filter-wrapper">
+        <label>Filter Status</label>
+        <select v-model="statusFilter" @change="fetchCourses(1)" class="inline-select">
+          <option value="">All Statuses</option>
+          <option value="Draft">Draft</option>
+          <option value="Published">Published</option>
+        </select>
+      </div>
     </div>
 
-    <div v-if="loading" class="loading">Loading courses...</div>
+    <div v-if="loading" class="loading-state">
+      <div class="spinner"></div>
+      <p>Fetching your courses...</p>
+    </div>
     
-    <div v-else-if="courses.length === 0" class="no-data">
-      No courses found.
+    <div v-else-if="courses.length === 0" class="empty-state card">
+      <div class="empty-icon">📂</div>
+      <h3>No courses found</h3>
+      <p>Try adjusting your filters or create a new course to get started.</p>
     </div>
 
-    <div v-else>
-      <table class="course-table">
+    <div v-else class="table-container">
+      <table class="data-table">
         <thead>
-          <tr>
-            <th>Title</th>
+          <tr class="header-row">
+            <th>Course Title</th>
             <th>Status</th>
             <th>Created At</th>
             <th>Actions</th>
@@ -37,31 +53,35 @@
         </thead>
         <tbody>
           <tr v-for="course in courses" :key="course.id">
-            <td>{{ course.title }}</td>
+            <td class="course-title">{{ course.title }}</td>
             <td>
-              <span :class="['status-badge', course.status.toLowerCase()]">
+              <span :class="['badge', course.status === 'Published' ? 'badge-success' : 'badge-warning']">
                 {{ course.status }}
               </span>
             </td>
-            <td>{{ formatDate(course.createdAt) }}</td>
-            <td class="actions">
-              <router-link :to="'/courses/' + course.id" class="btn-sm">Edit</router-link>
-              <button @click="deleteCourse(course.id)" class="btn-sm btn-danger">Delete</button>
+            <td class="date-cell">{{ formatDate(course.createdAt) }}</td>
+            <td class="action-cell">
+              <router-link :to="'/courses/' + course.id" class="btn btn-secondary btn-sm">Manage</router-link>
+              <button @click="deleteCourse(course.id)" class="btn btn-logout-sm btn-sm">Delete</button>
             </td>
           </tr>
         </tbody>
       </table>
 
-      <div class="pagination">
-        <button 
-          :disabled="currentPage === 1" 
-          @click="fetchCourses(currentPage - 1)"
-        >Previous</button>
-        <span>Page {{ currentPage }} of {{ totalPages }}</span>
-        <button 
-          :disabled="currentPage === totalPages" 
-          @click="fetchCourses(currentPage + 1)"
-        >Next</button>
+      <div class="pagination-footer">
+        <p class="stats">Showing page {{ currentPage }} of {{ totalPages }}</p>
+        <div class="pagination-controls">
+          <button 
+            class="btn btn-secondary btn-sm"
+            :disabled="currentPage === 1" 
+            @click="fetchCourses(currentPage - 1)"
+          >Previous</button>
+          <button 
+            class="btn btn-secondary btn-sm"
+            :disabled="currentPage === totalPages" 
+            @click="fetchCourses(currentPage + 1)"
+          >Next</button>
+        </div>
       </div>
     </div>
   </div>
@@ -86,9 +106,8 @@ const fetchCourses = async (page = 1) => {
   currentPage.value = page;
   try {
     let response;
-    // Use search endpoint if authenticated, otherwise use basic list
     if (authStore.isAuthenticated) {
-      response = await apiClient.get('/course/search', {
+      response = await apiClient.get('/courses/search', {
         params: {
           q: searchQuery.value,
           status: statusFilter.value || undefined,
@@ -97,7 +116,7 @@ const fetchCourses = async (page = 1) => {
         }
       });
     } else {
-      response = await apiClient.get('/course', {
+      response = await apiClient.get('/courses', {
         params: {
           page: currentPage.value,
           pageSize: pageSize.value
@@ -123,9 +142,9 @@ const handleSearch = () => {
 };
 
 const deleteCourse = async (id) => {
-  if (!confirm('Are you sure you want to delete this course?')) return;
+  if (!confirm('Are you sure you want to delete this course? This action cannot be undone.')) return;
   try {
-    await apiClient.delete(`/course/${id}`);
+    await apiClient.delete(`/courses/${id}`);
     fetchCourses(currentPage.value);
   } catch (err) {
     alert('Error deleting course');
@@ -133,7 +152,11 @@ const deleteCourse = async (id) => {
 };
 
 const formatDate = (dateString) => {
-  return new Date(dateString).toLocaleDateString();
+  return new Intl.DateTimeFormat('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric'
+  }).format(new Date(dateString));
 };
 
 onMounted(() => {
@@ -142,114 +165,139 @@ onMounted(() => {
 </script>
 
 <style scoped>
-.header {
+.page-header {
   display: flex;
   justify-content: space-between;
-  align-items: center;
-  margin-bottom: 2rem;
+  align-items: flex-end;
+  margin-bottom: 40px;
 }
 
-.filters {
+.subtitle {
+  color: var(--text-light);
+  font-size: 1.1rem;
+  margin-top: 5px;
+}
+
+.search-bar {
   display: flex;
-  gap: 1rem;
-  margin-bottom: 2rem;
+  gap: 30px;
+  align-items: center;
+  margin-bottom: 40px;
+  padding: 20px 30px;
 }
 
-.search-input {
+.search-input-wrapper {
   flex: 1;
-  padding: 0.6rem;
-  border: 1px solid #ccc;
-  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  background: #f8f9fa;
+  border-radius: 10px;
+  padding-left: 15px;
+  border: 1px solid var(--border);
 }
 
-.status-select {
-  padding: 0.6rem;
-  border: 1px solid #ccc;
-  border-radius: 4px;
+.search-icon {
+  font-size: 1.2rem;
+  opacity: 0.5;
 }
 
-.course-table {
-  width: 100%;
-  border-collapse: collapse;
-  margin-bottom: 2rem;
+.inline-input {
+  border: none;
+  background: transparent;
+  padding: 12px;
 }
 
-.course-table th, .course-table td {
-  padding: 1rem;
-  text-align: left;
-  border-bottom: 1px solid #eee;
+.filter-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 15px;
 }
 
-.status-badge {
-  padding: 0.2rem 0.6rem;
-  border-radius: 12px;
-  font-size: 0.8rem;
-  font-weight: bold;
+.filter-wrapper label {
+  margin: 0;
+  white-space: nowrap;
 }
 
-.status-badge.published {
-  background-color: #e6f7ef;
-  color: #2ecc71;
+.inline-select {
+  width: 160px;
+  padding: 10px;
 }
 
-.status-badge.draft {
-  background-color: #fef5e7;
-  color: #f39c12;
+.course-title {
+  font-weight: 600;
+  font-size: 1.1rem;
+  color: var(--secondary);
 }
 
-.btn {
-  padding: 0.6rem 1.2rem;
-  background-color: #42b983;
-  color: white;
-  text-decoration: none;
-  border-radius: 4px;
-  font-weight: bold;
+.date-cell {
+  color: var(--text-light);
+  font-size: 0.9rem;
+}
+
+.action-cell {
+  display: flex;
+  gap: 10px;
 }
 
 .btn-sm {
-  padding: 0.4rem 0.8rem;
-  background-color: #3498db;
+  padding: 8px 16px;
+  font-size: 0.85rem;
+}
+
+.btn-logout-sm {
+  background: transparent;
+  color: var(--danger);
+  border: 1px solid rgba(231, 76, 60, 0.3);
+}
+
+.btn-logout-sm:hover {
+  background: var(--danger);
   color: white;
-  text-decoration: none;
-  border-radius: 4px;
-  font-size: 0.8rem;
-  margin-right: 0.5rem;
-  border: none;
-  cursor: pointer;
+  border-color: var(--danger);
 }
 
-.btn-danger {
-  background-color: #e74c3c;
-}
-
-.pagination {
+.pagination-footer {
   display: flex;
-  justify-content: center;
+  justify-content: space-between;
   align-items: center;
-  gap: 1rem;
+  margin-top: 30px;
+  padding: 20px 0;
 }
 
-.pagination button {
-  padding: 0.5rem 1rem;
-  border: 1px solid #ccc;
-  background: white;
-  cursor: pointer;
-  border-radius: 4px;
+.stats {
+  color: var(--text-light);
+  font-size: 0.9rem;
 }
 
-.pagination button:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
+.pagination-controls {
+  display: flex;
+  gap: 10px;
 }
 
-.no-data {
+.loading-state, .empty-state {
   text-align: center;
-  padding: 3rem;
-  color: #777;
+  padding: 80px 40px;
 }
 
-.loading {
-  text-align: center;
-  padding: 3rem;
+.empty-state h3 {
+  margin: 20px 0 10px;
+}
+
+.empty-state p {
+  color: var(--text-light);
+}
+
+.spinner {
+  width: 40px;
+  height: 40px;
+  border: 4px solid rgba(66, 185, 131, 0.1);
+  border-left-color: var(--primary);
+  border-radius: 50%;
+  margin: 0 auto 20px;
+  animation: rotate 1s linear infinite;
+}
+
+@keyframes rotate {
+  to { transform: rotate(360deg); }
 }
 </style>
