@@ -9,10 +9,10 @@
 
       <form @submit.prevent="handleRegister" class="auth-form">
         <div class="form-group">
-          <label>Full Name or Username</label>
+          <label>Full Name</label>
           <input 
             type="text" 
-            v-model="userName" 
+            v-model="fullName" 
             required 
             placeholder="e.g., alex_dev" 
             autofocus
@@ -70,7 +70,7 @@ import { useRouter } from 'vue-router';
 const authStore = useAuthStore();
 const router = useRouter();
 
-const userName = ref('');
+const fullName = ref('');
 const email = ref('');
 const password = ref('');
 const confirmPassword = ref('');
@@ -85,7 +85,7 @@ const handleRegister = async () => {
   loading.value = true;
   error.value = '';
   try {
-    await authStore.register(email.value, password.value, userName.value, confirmPassword.value);
+    await authStore.register(email.value, password.value, fullName.value, confirmPassword.value);
     router.push('/courses');
   } catch (err) {
     if (err.response?.data?.errors) {
